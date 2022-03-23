@@ -15,6 +15,7 @@ export class TrackService {
     private fileService: FileService,
   ) {}
 
+  /** Создание нового трека. Загрузка на сервер */
   async create(dto: CreateTrackDto, picture, audio): Promise<Track> {
     const audioPath = this.fileService.createFile(FileType.AUDIO, audio);
     const picturePath = this.fileService.createFile(FileType.IMAGE, picture);
@@ -26,24 +27,48 @@ export class TrackService {
     });
     return track;
   }
-  async getAll(): Promise<Track[]> {
-    const tracks = await this.trackModel.find();
+
+  /** Вернуть список треков */
+  async getAll(count = 10, offset = 0): Promise<Track[]> {
+    /** scip = отступ с которого возвращать список и limit = количество треков в списке */
+    const tracks = await this.trackModel.find().skip(offset).limit(count);
     return tracks;
   }
+
+  /** Вернуть 1 конкретный трек по id */
   async getOne(id: ObjectId): Promise<Track> {
     const track = await this.trackModel.findById(id).populate('comments');
     return track;
   }
+
+  /** Удалить трек */
   async delete(id: ObjectId): Promise<ObjectId> {
     const track = await this.trackModel.findByIdAndDelete(id);
     return track._id;
   }
 
+  /** Добавить комментарий к треку */
   async addComment(dto: CreateCommentDto): Promise<Comment> {
     const track = await this.trackModel.findById(dto.trackId);
     const comment = await this.commentModel.create({ ...dto });
     track.comments.push(comment._id);
     await track.save();
     return comment;
+  }
+
+  /** Добавление количества прослушиваний после запроса трека */
+  async listen(id: ObjectId) {
+    const track = await this.trackModel.findById(id);
+    track.listens += 1;
+    await track.save();
+  }
+
+  async search(query: string): Promise<Track[]> {
+    const tracks = await this.trackModel.find({
+      name: {
+        $regex: new RegExp(query, 'i'),
+      },
+    });
+    return tracks;
   }
 }
